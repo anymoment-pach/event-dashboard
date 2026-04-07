@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>EventReg by ANY</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07080f;--s1:#0d0f1a;--s2:#131525;--s3:#1a1d32;--bd:#1e2138;--bd2:#252840;
+  --acc:#6366f1;--acc2:#8b5cf6;--green:#10b981;--red:#ef4444;--amber:#f59e0b;
+  --text:#e2e8f0;--muted:#64748b;--r:14px
+}
+body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;z-index:0;
+  background-image:radial-gradient(ellipse at 20% 0%,rgba(99,102,241,.08) 0%,transparent 50%),
+    radial-gradient(ellipse at 80% 100%,rgba(139,92,246,.05) 0%,transparent 50%);
+  pointer-events:none}
+
+/* ── VIEWS ── */
+.view{display:none;position:relative;z-index:1}
+.view.active{display:block}
+
+/* ── LOGIN ── */
+#v-login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{background:var(--s1);border:1px solid var(--bd);border-radius:24px;
+  padding:40px;width:100%;max-width:400px;text-align:center}
+.login-logo{font-size:48px;margin-bottom:16px}
+.login-card h1{font-size:24px;font-weight:800;color:#f1f5f9;margin-bottom:6px}
+.login-card p{color:var(--muted);font-size:14px;margin-bottom:32px}
+.login-input{width:100%;background:var(--s2);border:1.5px solid var(--bd);color:var(--text);
+  padding:13px 16px;border-radius:12px;font-family:'Sarabun',sans-serif;font-size:15px;
+  outline:none;transition:border .2s;margin-bottom:12px;display:block}
+.login-input:focus{border-color:var(--acc)}
+.login-btn{width:100%;background:linear-gradient(135deg,var(--acc),var(--acc2));
+  color:#fff;border:none;padding:14px;border-radius:12px;
+  font-family:'Sarabun',sans-serif;font-size:16px;font-weight:800;
+  cursor:pointer;transition:all .2s;margin-top:4px}
+.login-btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.login-err{color:var(--red);font-size:13px;margin-top:8px;display:none}
+
+/* ── APP LAYOUT ── */
+#v-app{display:flex;min-height:100vh}
+.sidebar{width:220px;background:var(--s1);border-right:1px solid var(--bd);
+  display:flex;flex-direction:column;position:fixed;height:100vh;top:0;left:0;z-index:50;
+  transition:transform .3s}
+.sidebar.hidden{transform:translateX(-220px)}
+.logo-area{padding:20px;border-bottom:1px solid var(--bd)}
+.logo-area h2{font-size:14px;font-weight:800;color:#f1f5f9}
+.logo-area p{font-size:11px;color:var(--muted);margin-top:2px}
+.user-pill{background:var(--s2);border:1px solid var(--bd);border-radius:10px;
+  padding:8px 12px;margin-top:12px;display:flex;align-items:center;gap:8px}
+.user-role{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:auto}
+.role-admin{background:rgba(99,102,241,.2);color:#a5b4fc}
+.role-staff{background:rgba(16,185,129,.2);color:#6ee7b7}
+nav{padding:10px 0;flex:1;overflow-y:auto}
+.nav-sec{padding:8px 16px 4px;font-size:10px;text-transform:uppercase;
+  letter-spacing:1.5px;color:#374151;font-weight:700}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;
+  color:var(--muted);cursor:pointer;transition:all .2s;font-size:13px;font-weight:600;
+  border-left:3px solid transparent}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.03)}
+.nav-item.on{color:#a5b4fc;background:rgba(99,102,241,.08);border-left-color:var(--acc)}
+.nav-item.admin-only{display:none}
+.is-admin .nav-item.admin-only{display:flex}
+.nav-foot{padding:16px;border-top:1px solid var(--bd)}
+.logout-btn{width:100%;background:none;border:1px solid var(--bd);color:var(--muted);
+  padding:9px;border-radius:10px;cursor:pointer;font-family:'Sarabun',sans-serif;
+  font-size:13px;transition:all .2s}
+.logout-btn:hover{border-color:var(--red);color:var(--red)}
+
+/* Mobile hamburger */
+.hamburger{display:none;position:fixed;top:12px;left:12px;z-index:100;
+  background:var(--s1);border:1px solid var(--bd);border-radius:10px;
+  padding:8px 10px;cursor:pointer;font-size:18px}
+
+.main-area{margin-left:220px;flex:1;min-height:100vh;transition:margin .3s}
+.topbar{background:var(--s1);border-bottom:1px solid var(--bd);
+  padding:0 24px;height:54px;display:flex;align-items:center;gap:12px;
+  position:sticky;top:0;z-index:40}
+.topbar h1{font-size:15px;font-weight:800;color:#f1f5f9;flex:1}
+.content{padding:20px 24px}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:10px;
+  border:none;cursor:pointer;font-family:'Sarabun',sans-serif;font-size:13px;font-weight:700;
+  transition:all .2s;white-space:nowrap}
+.btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.btn-acc{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff}
+.btn-outline{background:transparent;border:1px solid var(--bd2);color:var(--text)}
+.btn-outline:hover{background:var(--s3)}
+.btn-green{background:var(--green);color:#fff}
+.btn-red{background:var(--red);color:#fff}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:8px}
+
+/* ── CARDS ── */
+.card{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-bottom:16px}
+.card-title{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:700;margin-bottom:14px}
+
+/* ── EVENT CARDS ── */
+.ev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:20px}
+.ev-card{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);
+  padding:18px;transition:all .25s;position:relative;overflow:hidden}
+.ev-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.ev-card.st-active::before{background:linear-gradient(90deg,var(--green),#059669)}
+.ev-card.st-draft::before{background:var(--muted)}
+.ev-card.st-closed::before{background:var(--red)}
+.ev-card:hover{border-color:var(--bd2);transform:translateY(-2px)}
+.ev-name{font-size:15px;font-weight:800;color:#f1f5f9;margin-bottom:6px}
+.ev-meta{font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:12px}
+.ev-stats{display:flex;gap:16px;margin-bottom:14px}
+.ev-stat-n{font-size:22px;font-weight:800;font-family:'IBM Plex Mono',monospace}
+.ev-stat-l{font-size:10px;color:var(--muted)}
+.status-tag{position:absolute;top:14px;right:14px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700}
+.st-active .status-tag{background:rgba(16,185,129,.15);color:var(--green)}
+.st-draft .status-tag{background:rgba(100,116,139,.15);color:var(--muted)}
+.st-closed .status-tag{background:rgba(239,68,68,.1);color:var(--red)}
+
+/* ── FORM LINK BOX ── */
+.link-box{background:var(--s1);border:1px solid var(--bd);border-radius:10px;
+  padding:10px 14px;font-family:'IBM Plex Mono',monospace;font-size:11px;
+  color:var(--muted);word-break:break-all;margin:8px 0}
+
+/* ── KPI ── */
+.kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.kpi{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:16px;position:relative;overflow:hidden}
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi.k1::after{background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.kpi.k2::after{background:linear-gradient(90deg,var(--green),#059669)}
+.kpi.k3::after{background:linear-gradient(90deg,var(--amber),#d97706)}
+.kpi-n{font-size:32px;font-weight:800;font-family:'IBM Plex Mono',monospace;line-height:1;margin:8px 0 4px}
+.kpi.k1 .kpi-n{color:#a5b4fc}
+.kpi.k2 .kpi-n{color:var(--green)}
+.kpi.k3 .kpi-n{color:var(--amber)}
+.kpi-l{font-size:12px;color:var(--muted)}
+
+/* ── TABLE ── */
+.tbl-wrap{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
+.tbl-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--bd);flex-wrap:wrap;gap:8px}
+.tbl-head h3{font-size:14px;font-weight:700;color:#f1f5f9}
+table{width:100%;border-collapse:collapse}
+th{padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700;background:var(--s1)}
+td{padding:11px 14px;font-size:13px;border-top:1px solid var(--bd)}
+tr:hover td{background:rgba(255,255,255,.015)}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.b-green{background:rgba(16,185,129,.12);color:var(--green)}
+.b-amber{background:rgba(245,158,11,.1);color:var(--amber)}
+.mono{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)}
+
+/* ── FORM BUILDER ── */
+.field-item{background:var(--s1);border:1px solid var(--bd);border-radius:10px;
+  padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:8px;transition:border .2s}
+.field-item:hover{border-color:var(--bd2)}
+.field-info{flex:1}
+.field-name{font-size:13px;font-weight:700;color:#f1f5f9}
+.field-type{font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.icon-btn{background:none;border:none;cursor:pointer;padding:5px 7px;border-radius:6px;color:var(--muted);font-size:14px;transition:all .2s}
+.icon-btn:hover{background:var(--bd);color:var(--text)}
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px}
+.form-input,.form-select,.form-textarea{width:100%;background:var(--s1);border:1.5px solid var(--bd);
+  color:var(--text);padding:10px 14px;border-radius:10px;font-family:'Sarabun',sans-serif;
+  font-size:14px;outline:none;transition:border .2s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--acc)}
+.form-textarea{resize:vertical;min-height:80px}
+
+/* ── SCANNER ── */
+.scanner-wrap{max-width:420px;margin:0 auto}
+.scanner-box{background:var(--s1);border:1px solid var(--bd);border-radius:20px;overflow:hidden;margin-bottom:14px}
+#reader{width:100%!important}
+.scan-status{display:flex;align-items:center;justify-content:center;gap:8px;color:var(--green);font-size:13px;margin-bottom:12px}
+.pulse{width:8px;height:8px;background:var(--green);border-radius:50%;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.result-card{border-radius:16px;padding:22px;text-align:center;display:none;animation:slideUp .35s ease;margin-bottom:14px}
+.result-card.success{background:#052e16;border:1px solid #16a34a}
+.result-card.warning{background:#1c1200;border:1px solid #ca8a04}
+.result-card.error{background:#1c0a0a;border:1px solid #dc2626}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.r-icon{font-size:44px;margin-bottom:8px}
+.r-name{font-size:22px;font-weight:800;color:#f1f5f9;margin-bottom:4px}
+.r-msg{font-size:14px;opacity:.8}
+.r-time{font-size:11px;opacity:.5;font-family:'IBM Plex Mono',monospace;margin-top:4px}
+.stats-row{display:flex;justify-content:space-around;background:var(--s1);border:1px solid var(--bd);border-radius:14px;padding:14px}
+.stat-n{font-size:26px;font-weight:800;font-family:'IBM Plex Mono',monospace;text-align:center}
+.stat-l{font-size:10px;color:var(--muted);text-align:center;margin-top:3px}
+.ev-select{width:100%;background:var(--s1);border:1.5px solid var(--bd);color:var(--text);
+  padding:11px 14px;border-radius:12px;font-family:'Sarabun',sans-serif;font-size:14px;
+  outline:none;margin-bottom:12px;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center}
+.manual-row{display:flex;gap:8px;margin-bottom:14px}
+.manual-row input{flex:1;background:var(--s1);border:1.5px solid var(--bd);color:var(--text);
+  padding:11px 14px;border-radius:12px;font-family:'IBM Plex Mono',monospace;font-size:13px;outline:none}
+.manual-row input:focus{border-color:var(--acc)}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);
+  z-index:200;display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .25s;padding:16px}
+.overlay.show{opacity:1;pointer-events:all}
+.modal{background:var(--s2);border:1px solid var(--bd2);border-radius:20px;
+  padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;
+  transform:scale(.95);transition:transform .25s}
+.overlay.show .modal{transform:scale(1)}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.modal-head h3{font-size:16px;font-weight:800;color:#f1f5f9}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--s2);border:1px solid var(--bd);
+  border-radius:12px;padding:12px 18px;font-size:13px;z-index:999;
+  transform:translateY(80px);opacity:0;transition:all .3s;max-width:300px}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{border-color:var(--green)}
+.toast.err{border-color:var(--red)}
+
+/* ── LOADING ── */
+.loading{display:flex;align-items:center;justify-content:center;padding:60px}
+.spinner{width:28px;height:28px;border:3px solid var(--bd);border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty-icon{font-size:36px;margin-bottom:10px}
+
+/* ── REPORT ── */
+.report-hero{background:linear-gradient(135deg,var(--s2),var(--s1));border:1px solid rgba(99,102,241,.2);
+  border-radius:20px;padding:28px;text-align:center;margin-bottom:16px}
+.bd-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.bd-bar-wrap{width:80px;height:5px;background:var(--bd);border-radius:3px;flex-shrink:0}
+.bd-bar{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+
+/* ── MOBILE ── */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-220px)}
+  .sidebar.open{transform:translateX(0)}
+  .main-area{margin-left:0}
+  .hamburger{display:flex;align-items:center;justify-content:center}
+  .topbar{padding-left:52px}
+  .kpi-row{grid-template-columns:1fr 1fr}
+  .ev-grid{grid-template-columns:1fr}
+  .content{padding:14px}
+}
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN VIEW ── -->
+<div id="v-login" class="view active">
+  <div class="login-card">
+    <div class="login-logo">🎫</div>
+    <h1>EventReg by ANY</h1>
+    <p>เข้าสู่ระบบสำหรับเจ้าหน้าที่เท่านั้น</p>
+    <input class="login-input" id="loginEmail" type="email" placeholder="อีเมล"/>
+    <input class="login-input" id="loginPass" type="password" placeholder="รหัสผ่าน"/>
+    <button class="login-btn" onclick="doLogin()">🔐 เข้าสู่ระบบ</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- ── APP VIEW ── -->
+<div id="v-app" class="view">
+  <button class="hamburger" onclick="toggleSidebar()">☰</button>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-area">
+      <h2>🎫 EventReg by ANY</h2>
+      <p>Event Management Platform</p>
+      <div class="user-pill">
+        <span style="font-size:13px" id="userEmail">—</span>
+        <span class="user-role" id="userRoleBadge">—</span>
+      </div>
+    </div>
+    <nav>
+      <div class="nav-sec">จัดการ</div>
+      <div class="nav-item admin-only on" data-page="events" onclick="navTo(this)"><span>🗂️</span>รายการ Events</div>
+      <div class="nav-item admin-only" data-page="builder" onclick="navTo(this)"><span>✨</span>สร้าง Event</div>
+      <div class="nav-sec" style="margin-top:8px">งาน</div>
+      <div class="nav-item" data-page="dashboard" onclick="navTo(this)"><span>📊</span>Dashboard</div>
+      <div class="nav-item" data-page="attendees" onclick="navTo(this)"><span>👥</span>รายชื่อ</div>
+      <div class="nav-item" data-page="scanner" onclick="navTo(this)"><span>📷</span>QR Scanner</div>
+      <div class="nav-sec" style="margin-top:8px">สรุป</div>
+      <div class="nav-item admin-only" data-page="report" onclick="navTo(this)"><span>📋</span>Final Report</div>
+    </nav>
+    <div class="nav-foot">
+      <button class="logout-btn" onclick="doLogout()">🚪 ออกจากระบบ</button>
+    </div>
+  </aside>
+
+  <main class="main-area">
+    <div class="topbar">
+      <h1 id="pageTitle">รายการ Events</h1>
+      <div id="topActions"></div>
+    </div>
+    <div class="content" id="pageContent">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </main>
+</div>
+
+<!-- Field Modal -->
+<div class="overlay" id="fieldOverlay" onclick="if(event.target===this)closeModal('fieldOverlay')">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="fieldModalTitle">เพิ่มฟิลด์</h3>
+      <button class="icon-btn" onclick="closeModal('fieldOverlay')" style="font-size:18px">✕</button>
+    </div>
+    <div class="form-group"><label class="form-label">Field ID (ภาษาอังกฤษ)</label>
+      <input class="form-input" id="f-id" placeholder="name, email, phone..."/></div>
+    <div class="form-group"><label class="form-label">ชื่อที่แสดง</label>
+      <input class="form-input" id="f-label" placeholder="ชื่อ-นามสกุล, อีเมล..."/></div>
+    <div class="form-group"><label class="form-label">ประเภท</label>
+      <select class="form-select" id="f-type" onchange="onFTypeChange()">
+        <option value="text">Text</option><option value="email">Email</option>
+        <option value="tel">Tel</option><option value="number">Number</option>
+        <option value="select">Select (Dropdown)</option><option value="radio">Radio</option>
+        <option value="checkbox">Checkbox</option><option value="textarea">Textarea</option>
+      </select></div>
+    <div class="form-group" id="f-opts-wrap" style="display:none">
+      <label class="form-label">ตัวเลือก (แต่ละบรรทัด)</label>
+      <textarea class="form-textarea" id="f-opts" placeholder="ตัวเลือก A&#10;ตัวเลือก B"></textarea></div>
+    <div class="form-group"><label class="form-label">Placeholder</label>
+      <input class="form-input" id="f-ph" placeholder="ข้อความตัวอย่าง"/></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <input type="checkbox" id="f-req" style="width:16px;height:16px;accent-color:var(--acc)"/>
+      <label for="f-req" style="font-size:13px;cursor:pointer">Required (บังคับกรอก)</label></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-acc" style="flex:1" onclick="saveField()">💾 บันทึก</button>
+      <button class="btn btn-outline" onclick="closeModal('fieldOverlay')">ยกเลิก</button></div>
+  </div>
+</div>
+
+<!-- Staff Modal -->
+<div class="overlay" id="staffOverlay" onclick="if(event.target===this)closeModal('staffOverlay')">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>เพิ่มเจ้าหน้าที่</h3>
+      <button class="icon-btn" onclick="closeModal('staffOverlay')" style="font-size:18px">✕</button>
+    </div>
+    <div class="form-group"><label class="form-label">อีเมล</label>
+      <input class="form-input" id="staff-email" type="email" placeholder="staff@email.com"/></div>
+    <div class="form-group"><label class="form-label">ชื่อ</label>
+      <input class="form-input" id="staff-name" placeholder="ชื่อเจ้าหน้าที่"/></div>
+    <div class="form-group"><label class="form-label">รหัสผ่าน</label>
+      <input class="form-input" id="staff-pass" type="password" placeholder="รหัสผ่าน"/></div>
+    <div class="form-group"><label class="form-label">Role</label>
+      <select class="form-select" id="staff-role">
+        <option value="staff">Staff (ดูและสแกนได้)</option>
+        <option value="admin">Admin (จัดการได้ทั้งหมด)</option>
+      </select></div>
+    <button class="btn btn-acc" style="width:100%" onclick="saveStaff()">💾 เพิ่มเจ้าหน้าที่</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── SUPABASE ──
+const SUPA_URL = 'https://biprjfyerbezwpqgsljp.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpcHJqZnllcmJlendwcWdzbGpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NTE4ODEsImV4cCI6MjA5MTEyNzg4MX0.ilQrizJIFhZdMTDqHZ5S-HagSRWe4k8r0ICHo7vjsGQ';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ── STATE ──
+let currentUser = null, userRole = 'staff';
+let currentEvent = null, currentPage = 'events';
+let builderFields = [], builderEventId = null, editingFieldIdx = -1;
+let scannerActive = false, scanBusy = false;
+let allAttendees = [], attFilter = 'all';
+let html5Qr = null;
+const APP_URL = window.location.href.split('?')[0];
+
+// ── AUTH ──
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginErr');
+  errEl.style.display = 'none';
+  if(!email||!pass){showErr('กรุณากรอกอีเมลและรหัสผ่าน');return;}
+  const {data,error} = await sb.auth.signInWithPassword({email,password:pass});
+  if(error){showErr('อีเมลหรือรหัสผ่านไม่ถูกต้อง');return;}
+  await loadUserRole(data.user);
+  showApp();
+}
+function showErr(msg){const e=document.getElementById('loginErr');e.textContent=msg;e.style.display='block';}
+
+async function loadUserRole(user) {
+  currentUser = user;
+  const {data} = await sb.from('staff').select('role,name').eq('email',user.email).single();
+  userRole = data?.role || 'staff';
+  document.getElementById('userEmail').textContent = data?.name || user.email;
+  document.getElementById('userRoleBadge').textContent = userRole==='admin'?'Admin':'Staff';
+  document.getElementById('userRoleBadge').className = 'user-role '+(userRole==='admin'?'role-admin':'role-staff');
+  if(userRole==='admin') document.getElementById('v-app').classList.add('is-admin');
+}
+
+function showApp() {
+  document.getElementById('v-login').classList.remove('active');
+  document.getElementById('v-app').style.display='flex';
+  document.getElementById('v-app').classList.add('active');
+  if(userRole==='admin') navTo(document.querySelector('[data-page="events"]'));
+  else navTo(document.querySelector('[data-page="scanner"]'));
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+// ── NAVIGATION ──
+function navTo(el) {
+  const page = el.dataset.page;
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('on'));
+  el.classList.add('on');
+  currentPage = page;
+  const titles={events:'🗂️ รายการ Events',builder:'✨ สร้าง Event',
+    dashboard:'📊 Dashboard',attendees:'👥 รายชื่อผู้เข้าร่วม',
+    scanner:'📷 QR Scanner',report:'📋 Final Report'};
+  document.getElementById('pageTitle').textContent = titles[page]||page;
+  stopScanner();
+  if(page==='events') renderEvents();
+  else if(page==='builder') renderBuilder();
+  else if(page==='dashboard') renderDashboard();
+  else if(page==='attendees') renderAttendees();
+  else if(page==='scanner') renderScanner();
+  else if(page==='report') renderReport();
+  // close sidebar on mobile
+  if(window.innerWidth<=768) document.getElementById('sidebar').classList.remove('open');
+}
+
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');}
+
+// ── EVENTS LIST ──
+async function renderEvents() {
+  setContent('<div class="loading"><div class="spinner"></div></div>');
+  document.getElementById('topActions').innerHTML =
+    `<button class="btn btn-acc btn-sm" onclick="navTo(document.querySelector('[data-page=builder]'))">✨ สร้าง Event ใหม่</button>
+     <button class="btn btn-outline btn-sm" style="margin-left:6px" onclick="openStaffModal()">👤 เพิ่มเจ้าหน้าที่</button>`;
+
+  const {data:events} = await sb.from('events').select('*').order('created_at',{ascending:false});
+  if(!events?.length){
+    setContent('<div class="empty"><div class="empty-icon">🗂️</div><p>ยังไม่มี Event<br>กด "สร้าง Event ใหม่" เพื่อเริ่มต้น</p></div>');
+    return;
+  }
+
+  // get registration counts
+  const {data:regs} = await sb.from('registrations').select('event_id,checked_in');
+  const countMap={}, checkinMap={};
+  (regs||[]).forEach(r=>{
+    countMap[r.event_id]=(countMap[r.event_id]||0)+1;
+    if(r.checked_in) checkinMap[r.event_id]=(checkinMap[r.event_id]||0)+1;
+  });
+
+  const cards = events.map(ev=>{
+    const total=countMap[ev.id]||0, checkin=checkinMap[ev.id]||0;
+    const pct=total>0?Math.round(checkin/total*100):0;
+    const stClass=ev.status==='active'?'st-active':ev.status==='closed'?'st-closed':'st-draft';
+    const stLabel=ev.status==='active'?'Active':ev.status==='closed'?'Closed':'Draft';
+    const formLink=`${APP_URL}?page=register&event_id=${ev.id}`;
+    return `<div class="ev-card ${stClass}">
+      <div class="status-tag">${stLabel}</div>
+      <div class="ev-name">${esc(ev.event_name)}</div>
+      <div class="ev-meta">📅 ${ev.event_date||'—'} ${ev.event_time?'⏱ '+ev.event_time:''}<br>📍 ${esc(ev.event_location||'—')}</div>
+      <div class="ev-stats">
+        <div><div class="ev-stat-n" style="color:#a5b4fc">${total}</div><div class="ev-stat-l">ลงทะเบียน</div></div>
+        <div><div class="ev-stat-n" style="color:var(--green)">${checkin}</div><div class="ev-stat-l">เช็กอิน</div></div>
+        <div><div class="ev-stat-n" style="color:var(--amber)">${pct}%</div><div class="ev-stat-l">อัตรา</div></div>
+      </div>
+      <div class="card-title" style="margin-bottom:6px">ลิงก์ฟอร์มลงทะเบียน</div>
+      <div class="link-box">${formLink}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn btn-acc btn-sm" onclick="selectEvent('${ev.id}')">📊 Dashboard</button>
+        <button class="btn btn-outline btn-sm" onclick='editEvent(${JSON.stringify(ev).replace(/'/g,"&#39;")})'>✏️ แก้ไข</button>
+        <button class="btn btn-outline btn-sm" onclick="copyLink('${formLink}')">📋 คัดลอก URL</button>
+        ${ev.status!=='closed'
+          ?`<button class="btn btn-outline btn-sm" onclick="toggleStatus('${ev.id}','${ev.status}')">
+              ${ev.status==='active'?'⏸ ปิด':'▶ เปิด'}</button>`:''}
+        <button class="btn btn-red btn-sm" onclick="deleteEvent('${ev.id}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+  setContent(`<div class="ev-grid">${cards}</div>`);
+}
+
+async function selectEvent(id) {
+  const {data} = await sb.from('events').select('*').eq('id',id).single();
+  currentEvent = data;
+  navTo(document.querySelector('[data-page="dashboard"]'));
+}
+
+async function toggleStatus(id,status) {
+  const newStatus = status==='active'?'draft':'active';
+  await sb.from('events').update({status:newStatus}).eq('id',id);
+  toast(newStatus==='active'?'✅ เปิด Event แล้ว':'⏸ ปิด Event แล้ว','ok');
+  renderEvents();
+}
+
+async function deleteEvent(id) {
+  if(!confirm('ลบ Event นี้?')) return;
+  await sb.from('events').delete().eq('id',id);
+  toast('🗑 ลบแล้ว','ok'); renderEvents();
+}
+
+function copyLink(url) {
+  navigator.clipboard.writeText(url).then(()=>toast('📋 คัดลอก URL แล้ว','ok'));
+}
+
+// ── BUILDER ──
+function renderBuilder(ev=null) {
+  builderEventId = ev?.id || null;
+  builderFields = ev?.fields_json || [
+    {id:'name',label:'ชื่อ-นามสกุล',type:'text',required:true,placeholder:'กรอกชื่อ-นามสกุล'},
+    {id:'email',label:'อีเมล',type:'email',required:true,placeholder:'example@email.com'},
+    {id:'phone',label:'เบอร์โทรศัพท์',type:'tel',required:false,placeholder:'08X-XXX-XXXX'},
+  ];
+  document.getElementById('topActions').innerHTML =
+    `<button class="btn btn-acc" onclick="saveEvent()">💾 บันทึก</button>`;
+
+  setContent(`
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:16px">
+      <div>
+        <div class="card">
+          <div class="card-title">ข้อมูล Event</div>
+          <div class="form-group"><label class="form-label">ชื่อ Event *</label>
+            <input class="form-input" id="b-name" value="${esc(ev?.event_name||'')}" placeholder="ชื่องาน..."/></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group"><label class="form-label">วันที่</label>
+              <input class="form-input" id="b-date" type="date" value="${ev?.event_date||''}"/></div>
+            <div class="form-group"><label class="form-label">เวลา</label>
+              <input class="form-input" id="b-time" value="${esc(ev?.event_time||'')}" placeholder="09:00-17:00"/></div>
+          </div>
+          <div class="form-group"><label class="form-label">สถานที่</label>
+            <input class="form-input" id="b-loc" value="${esc(ev?.event_location||'')}" placeholder="ห้องประชุม..."/></div>
+          <div class="form-group"><label class="form-label">รายละเอียด</label>
+            <textarea class="form-textarea" id="b-desc">${esc(ev?.event_description||'')}</textarea></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group"><label class="form-label">จำนวนที่นั่ง</label>
+              <input class="form-input" id="b-cap" type="number" value="${ev?.event_capacity||0}"/></div>
+            <div class="form-group"><label class="form-label">สีหลัก (Form)</label>
+              <input class="form-input" id="b-color" type="color" value="${ev?.primary_color||'#6366f1'}" style="padding:6px;height:42px"/></div>
+          </div>
+        </div>
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div class="card-title" style="margin:0">ฟิลด์ฟอร์ม</div>
+            <button class="btn btn-outline btn-sm" onclick="openFieldModal()">+ เพิ่มฟิลด์</button>
+          </div>
+          <div id="fieldListEl"></div>
+          <p style="font-size:12px;color:var(--muted);margin-top:10px">💡 ต้องมีฟิลด์ <strong style="color:var(--text)">name</strong> และ <strong style="color:var(--text)">email</strong></p>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title">สถานะ Event</div>
+          <select class="form-select" id="b-status">
+            <option value="draft" ${(!ev||ev.status==='draft')?'selected':''}>Draft (ยังไม่เผยแพร่)</option>
+            <option value="active" ${ev?.status==='active'?'selected':''}>Active (เปิดลงทะเบียน)</option>
+            <option value="closed" ${ev?.status==='closed'?'selected':''}>Closed (ปิดรับ)</option>
+          </select>
+        </div>
+        <div class="card" id="formLinkCard" style="${builderEventId?'':'display:none'}">
+          <div class="card-title">ลิงก์ฟอร์ม</div>
+          <div class="link-box" id="formLinkBox">${builderEventId?APP_URL+'?page=register&event_id='+builderEventId:'—'}</div>
+          <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px" onclick="copyLink(document.getElementById('formLinkBox').textContent)">📋 คัดลอก</button>
+        </div>
+      </div>
+    </div>`);
+  renderFieldList();
+}
+
+function renderFieldList() {
+  const el = document.getElementById('fieldListEl');
+  if(!el) return;
+  if(!builderFields.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:16px">ยังไม่มีฟิลด์</div>';return;}
+  el.innerHTML = builderFields.map((f,i)=>`
+    <div class="field-item">
+      <div class="field-info">
+        <div class="field-name">${esc(f.label)} ${f.required?'<span style="color:var(--red)">*</span>':''}</div>
+        <div class="field-type">${f.id} · ${f.type}</div>
+      </div>
+      <button class="icon-btn" onclick="moveField(${i},-1)">↑</button>
+      <button class="icon-btn" onclick="moveField(${i},1)">↓</button>
+      <button class="icon-btn" onclick="openFieldModal(${i})">✏️</button>
+      <button class="icon-btn" onclick="removeField(${i})" style="color:var(--red)">🗑</button>
+    </div>`).join('');
+}
+
+function moveField(i,d){const j=i+d;if(j<0||j>=builderFields.length)return;[builderFields[i],builderFields[j]]=[builderFields[j],builderFields[i]];renderFieldList();}
+function removeField(i){builderFields.splice(i,1);renderFieldList();}
+
+function openFieldModal(idx=-1) {
+  editingFieldIdx=idx;
+  const f=idx>=0?builderFields[idx]:{id:'',label:'',type:'text',required:false,placeholder:'',options:[]};
+  document.getElementById('fieldModalTitle').textContent=idx>=0?'แก้ไขฟิลด์':'เพิ่มฟิลด์';
+  document.getElementById('f-id').value=f.id;
+  document.getElementById('f-label').value=f.label;
+  document.getElementById('f-type').value=f.type;
+  document.getElementById('f-ph').value=f.placeholder||'';
+  document.getElementById('f-req').checked=f.required||false;
+  document.getElementById('f-opts').value=(f.options||[]).join('\n');
+  onFTypeChange();
+  document.getElementById('fieldOverlay').classList.add('show');
+}
+
+function onFTypeChange(){const t=document.getElementById('f-type').value;document.getElementById('f-opts-wrap').style.display=(t==='select'||t==='radio')?'block':'none';}
+
+function saveField() {
+  const id=document.getElementById('f-id').value.trim().replace(/\s+/g,'_');
+  const label=document.getElementById('f-label').value.trim();
+  if(!id||!label){toast('กรอก ID และชื่อฟิลด์','err');return;}
+  const type=document.getElementById('f-type').value;
+  const opts=document.getElementById('f-opts').value.trim().split('\n').filter(Boolean);
+  const field={id,label,type,required:document.getElementById('f-req').checked,placeholder:document.getElementById('f-ph').value.trim()};
+  if(opts.length&&(type==='select'||type==='radio')) field.options=opts;
+  if(editingFieldIdx>=0) builderFields[editingFieldIdx]=field;
+  else builderFields.push(field);
+  renderFieldList(); closeModal('fieldOverlay');
+}
+
+async function saveEvent() {
+  const name=document.getElementById('b-name')?.value.trim();
+  if(!name){toast('กรุณาใส่ชื่อ Event','err');return;}
+  if(!builderFields.find(f=>f.id==='name')||!builderFields.find(f=>f.id==='email')){
+    toast('ต้องมีฟิลด์ name และ email','err');return;}
+  const payload={
+    event_name:name,
+    event_date:document.getElementById('b-date')?.value||'',
+    event_time:document.getElementById('b-time')?.value||'',
+    event_location:document.getElementById('b-loc')?.value||'',
+    event_description:document.getElementById('b-desc')?.value||'',
+    event_capacity:parseInt(document.getElementById('b-cap')?.value)||0,
+    primary_color:document.getElementById('b-color')?.value||'#6366f1',
+    fields_json:builderFields,
+    status:document.getElementById('b-status')?.value||'draft',
+    updated_at:new Date().toISOString(),
+  };
+  if(builderEventId) {
+    await sb.from('events').update(payload).eq('id',builderEventId);
+    toast('✅ อัปเดตแล้ว','ok');
+  } else {
+    const {data} = await sb.from('events').insert(payload).select().single();
+    builderEventId = data.id;
+    toast('✅ สร้าง Event สำเร็จ!','ok');
+    document.getElementById('formLinkCard').style.display='block';
+    document.getElementById('formLinkBox').textContent=APP_URL+'?page=register&event_id='+data.id;
+  }
+  setTimeout(()=>navTo(document.querySelector('[data-page="events"]')),1200);
+}
+
+function editEvent(ev) {
+  builderEventId=ev.id;
+  builderFields=ev.fields_json||[];
+  document.getElementById('topActions').innerHTML=`<button class="btn btn-acc" onclick="saveEvent()">💾 บันทึก</button>`;
+  renderBuilder(ev);
+  navTo(document.querySelector('[data-page="builder"]'));
+}
+
+// ── DASHBOARD ──
+async function renderDashboard() {
+  if(!currentEvent){
+    setContent('<div class="empty"><div class="empty-icon">📊</div><p>กรุณาเลือก Event จากหน้ารายการก่อนครับ</p><button class="btn btn-acc" style="margin-top:16px" onclick="navTo(document.querySelector(\'[data-page=events]\'))">ไปเลือก Event</button></div>');
+    return;
+  }
+  document.getElementById('topActions').innerHTML=`
+    <span style="font-size:12px;color:var(--muted);margin-right:8px">${esc(currentEvent.event_name)}</span>
+    <button class="btn btn-outline btn-sm" onclick="renderDashboard()">🔄</button>
+    <button class="btn btn-outline btn-sm" style="margin-left:6px" onclick="navTo(document.querySelector('[data-page=events]'))">🔀 เปลี่ยน</button>`;
+  setContent('<div class="loading"><div class="spinner"></div></div>');
+
+  const {data:regs} = await sb.from('registrations').select('*').eq('event_id',currentEvent.id);
+  const total=regs?.length||0, checkin=regs?.filter(r=>r.checked_in).length||0;
+  const pct=total>0?Math.round(checkin/total*100):0;
+  const cap=currentEvent.event_capacity||0;
+
+  // field breakdowns
+  const fields=(currentEvent.fields_json||[]).filter(f=>['select','radio'].includes(f.type));
+  const breakdowns={};
+  fields.forEach(f=>{
+    breakdowns[f.id]={label:f.label,data:{}};
+    (regs||[]).forEach(r=>{
+      const v=r.field_data?.[f.id]||'(ไม่ระบุ)';
+      breakdowns[f.id].data[v]=(breakdowns[f.id].data[v]||0)+1;
+    });
+  });
+
+  const bdHtml=Object.values(breakdowns).map(b=>{
+    const entries=Object.entries(b.data).sort((a,c)=>c[1]-a[1]);
+    const max=entries[0]?entries[0][1]:1;
+    return `<div class="card">
+      <div class="card-title">${esc(b.label)}</div>
+      ${entries.map(([v,c])=>`<div class="bd-row">
+        <div style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v)}</div>
+        <div class="bd-bar-wrap"><div class="bd-bar" style="width:${Math.round(c/max*100)}%"></div></div>
+        <div class="mono" style="min-width:28px;text-align:right">${c}</div>
+        <div style="font-size:11px;color:var(--muted);min-width:32px;text-align:right">${Math.round(c/Math.max(total,1)*100)}%</div>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+
+  const circ=326.73,off=circ-(pct/100*circ);
+  setContent(`
+    <div style="background:linear-gradient(135deg,var(--s2),var(--s1));border:1px solid var(--bd);border-radius:20px;padding:20px;margin-bottom:16px">
+      <div style="font-size:18px;font-weight:800;color:#f1f5f9">${esc(currentEvent.event_name)}</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px">📅 ${currentEvent.event_date||'—'} ${currentEvent.event_time?'⏱ '+currentEvent.event_time:''} 📍 ${esc(currentEvent.event_location||'—')}</div>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi k1"><div style="font-size:18px">📋</div><div class="kpi-n">${total}</div><div class="kpi-l">ลงทะเบียน</div></div>
+      <div class="kpi k2"><div style="font-size:18px">✅</div><div class="kpi-n">${checkin}</div><div class="kpi-l">เช็กอิน (${pct}%)</div></div>
+      <div class="kpi k3"><div style="font-size:18px">⏳</div><div class="kpi-n">${total-checkin}</div><div class="kpi-l">ยังไม่มา</div></div>
+      ${cap>0?`<div class="kpi" style="border-color:var(--bd)"><div style="font-size:18px">💺</div><div class="kpi-n" style="color:var(--text)">${cap}</div><div class="kpi-l">ที่นั่ง (${Math.round(total/cap*100)}%)</div></div>`:''}
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:24px">
+        <div style="position:relative;flex-shrink:0">
+          <svg style="transform:rotate(-90deg)" width="100" height="100" viewBox="0 0 100 100">
+            <circle fill="none" stroke="var(--bd)" stroke-width="8" cx="50" cy="50" r="42"/>
+            <circle fill="none" stroke="${pct>=80?'var(--green)':pct>=50?'var(--amber)':'var(--red)'}" stroke-width="8" stroke-linecap="round"
+              cx="50" cy="50" r="42" stroke-dasharray="263.89" stroke-dashoffset="${263.89-(pct/100*263.89)}"/>
+          </svg>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center">
+            <div style="font-size:22px;font-weight:800;color:${pct>=80?'var(--green)':pct>=50?'var(--amber)':'var(--red)'};font-family:'IBM Plex Mono',monospace">${pct}%</div>
+          </div>
+        </div>
+        <div><h3 style="font-size:15px;font-weight:700;color:#f1f5f9;margin-bottom:6px">อัตราการเข้าร่วม</h3>
+          <p style="font-size:13px;color:var(--muted)">เช็กอิน ${checkin} คน จาก ${total} คนที่ลงทะเบียน</p></div>
+      </div>
+    </div>
+    ${bdHtml}
+    <div class="tbl-wrap">
+      <div class="tbl-head"><h3>ผู้ลงทะเบียนล่าสุด</h3>
+        <button class="btn btn-outline btn-sm" onclick="navTo(document.querySelector('[data-page=attendees]'))">ดูทั้งหมด →</button></div>
+      <table><thead><tr><th>#</th><th>ชื่อ</th><th>อีเมล</th><th>สถานะ</th><th>เวลาเช็กอิน</th></tr></thead>
+      <tbody>${(regs||[]).slice(-8).reverse().map((r,i)=>`<tr>
+        <td class="mono">${i+1}</td><td><strong>${esc(r.name)}</strong></td>
+        <td class="mono" style="font-size:11px">${esc(r.email)}</td>
+        <td>${r.checked_in?'<span class="badge b-green">✅ เช็กอิน</span>':'<span class="badge b-amber">⏳ รอ</span>'}</td>
+        <td class="mono">${r.checkin_time?new Date(r.checkin_time).toLocaleString('th-TH'):'—'}</td>
+      </tr>`).join('')}</tbody></table>
+    </div>`);
+}
+
+// ── ATTENDEES ──
+async function renderAttendees() {
+  if(!currentEvent){setContent('<div class="empty"><div class="empty-icon">👥</div><p>กรุณาเลือก Event ก่อน</p></div>');return;}
+  document.getElementById('topActions').innerHTML=`
+    <button class="btn btn-green btn-sm" onclick="exportCSV()">⬇️ CSV</button>
+    <button class="btn btn-outline btn-sm" style="margin-left:6px" onclick="copyNames()">📋 คัดลอกชื่อ</button>`;
+  setContent('<div class="loading"><div class="spinner"></div></div>');
+
+  const {data:regs} = await sb.from('registrations').select('*').eq('event_id',currentEvent.id).order('created_at');
+  allAttendees=regs||[];
+
+  renderAttTable();
+}
+
+function renderAttTable() {
+  const filtered=allAttendees.filter(r=>{
+    if(attFilter==='checked_in') return r.checked_in;
+    if(attFilter==='not_checked_in') return !r.checked_in;
+    return true;
+  });
+  const extraF=(currentEvent.fields_json||[]).filter(f=>!['name','email'].includes(f.id)).slice(0,3);
+  document.getElementById('pageContent').innerHTML=`
+    <div class="tbl-wrap">
+      <div class="tbl-head">
+        <div style="display:flex;gap:4px">
+          <div class="btn btn-sm ${attFilter==='all'?'btn-acc':'btn-outline'}" onclick="setAttFilter('all')">ทั้งหมด (${allAttendees.length})</div>
+          <div class="btn btn-sm ${attFilter==='checked_in'?'btn-acc':'btn-outline'}" onclick="setAttFilter('checked_in')">✅ เช็กอิน</div>
+          <div class="btn btn-sm ${attFilter==='not_checked_in'?'btn-acc':'btn-outline'}" onclick="setAttFilter('not_checked_in')">⏳ ยังไม่มา</div>
+        </div>
+        <input style="background:var(--s1);border:1px solid var(--bd);color:var(--text);padding:7px 12px;border-radius:10px;font-size:13px;outline:none;width:160px"
+          placeholder="🔍 ค้นหา..." oninput="searchAtt(this.value)"/>
+      </div>
+      <table><thead><tr><th>#</th><th>ชื่อ</th><th>อีเมล</th>
+        ${extraF.map(f=>`<th>${esc(f.label)}</th>`).join('')}
+        <th>สถานะ</th><th>เวลาเช็กอิน</th></tr></thead>
+      <tbody>${filtered.map((r,i)=>`<tr>
+        <td class="mono">${i+1}</td><td><strong>${esc(r.name)}</strong></td>
+        <td class="mono" style="font-size:11px">${esc(r.email)}</td>
+        ${extraF.map(f=>`<td>${esc(r.field_data?.[f.id]||'—')}</td>`).join('')}
+        <td>${r.checked_in?'<span class="badge b-green">✅</span>':'<span class="badge b-amber">⏳</span>'}</td>
+        <td class="mono" style="font-size:11px">${r.checkin_time?new Date(r.checkin_time).toLocaleString('th-TH'):'—'}</td>
+      </tr>`).join('')}</tbody></table>
+    </div>`;
+}
+
+function setAttFilter(f){attFilter=f;renderAttTable();}
+function searchAtt(q){
+  const filtered=allAttendees.filter(r=>(r.name||'').toLowerCase().includes(q.toLowerCase())||(r.email||'').toLowerCase().includes(q.toLowerCase()));
+  const extraF=(currentEvent.fields_json||[]).filter(f=>!['name','email'].includes(f.id)).slice(0,3);
+  document.querySelector('tbody').innerHTML=filtered.map((r,i)=>`<tr>
+    <td class="mono">${i+1}</td><td><strong>${esc(r.name)}</strong></td>
+    <td class="mono" style="font-size:11px">${esc(r.email)}</td>
+    ${extraF.map(f=>`<td>${esc(r.field_data?.[f.id]||'—')}</td>`).join('')}
+    <td>${r.checked_in?'<span class="badge b-green">✅</span>':'<span class="badge b-amber">⏳</span>'}</td>
+    <td class="mono" style="font-size:11px">${r.checkin_time?new Date(r.checkin_time).toLocaleString('th-TH'):'—'}</td>
+  </tr>`).join('');
+}
+
+function exportCSV(){
+  if(!allAttendees.length){toast('ไม่มีข้อมูล','err');return;}
+  const extraF=(currentEvent.fields_json||[]).filter(f=>!['name','email'].includes(f.id));
+  const hdr=['#','ชื่อ','อีเมล',...extraF.map(f=>f.label),'สถานะ','เวลาเช็กอิน'];
+  const rows=allAttendees.map((r,i)=>[i+1,r.name,r.email,...extraF.map(f=>r.field_data?.[f.id]||''),r.checked_in?'เช็กอิน':'ยังไม่มา',r.checkin_time?new Date(r.checkin_time).toLocaleString('th-TH'):'']);
+  dlCSV([hdr,...rows],'attendees');
+}
+
+function copyNames(){
+  const names=allAttendees.filter(r=>r.checked_in).map((r,i)=>`${i+1}. ${r.name}`).join('\n');
+  if(!names){toast('ไม่มีผู้เช็กอิน','err');return;}
+  navigator.clipboard.writeText(names).then(()=>toast('📋 คัดลอกชื่อผู้เช็กอินแล้ว','ok'));
+}
+
+// ── SCANNER ──
+async function renderScanner() {
+  document.getElementById('topActions').innerHTML='';
+  setContent(`
+    <div class="scanner-wrap">
+      <select class="ev-select" id="scanEvSelect" onchange="loadScanStats()">
+        <option value="">— เลือก Event —</option>
+      </select>
+      <div class="scan-status"><div class="pulse"></div><span>กำลังสแกน QR Code</span></div>
+      <div class="scanner-box"><div id="reader"></div></div>
+      <div class="manual-row">
+        <input id="manualId" placeholder="กรอก Reg ID ด้วยตนเอง..." onkeypress="if(event.key==='Enter')manualCheckin()"/>
+        <button class="btn btn-acc" onclick="manualCheckin()">เช็กอิน</button>
+      </div>
+      <div class="result-card" id="scanResult">
+        <div class="r-icon" id="rIcon"></div>
+        <div class="r-name" id="rName"></div>
+        <div class="r-msg" id="rMsg"></div>
+        <div class="r-time" id="rTime"></div>
+      </div>
+      <div class="stats-row">
+        <div><div class="stat-n" style="color:#a5b4fc" id="sc-total">—</div><div class="stat-l">ลงทะเบียน</div></div>
+        <div><div class="stat-n" style="color:var(--green)" id="sc-in">—</div><div class="stat-l">เช็กอิน</div></div>
+        <div><div class="stat-n" style="color:var(--amber)" id="sc-out">—</div><div class="stat-l">ยังไม่มา</div></div>
+      </div>
+    </div>`);
+
+  // load events
+  const {data:events} = await sb.from('events').select('id,event_name,status').neq('status','closed');
+  const sel = document.getElementById('scanEvSelect');
+  (events||[]).forEach(ev=>{
+    const o=document.createElement('option');
+    o.value=ev.id; o.textContent=ev.event_name;
+    if(currentEvent?.id===ev.id) o.selected=true;
+    sel.appendChild(o);
+  });
+  if(currentEvent) loadScanStats();
+
+  // start scanner
+  setTimeout(()=>startScanner(), 300);
+}
+
+function startScanner() {
+  if(html5Qr) return;
+  try {
+    html5Qr = new Html5Qrcode("reader");
+    html5Qr.start({facingMode:"environment"},{fps:10,qrbox:{width:230,height:230}},
+      async decoded => {
+        if(scanBusy) return;
+        let regId = decoded;
+        try{const u=new URL(decoded);regId=u.searchParams.get('reg_id')||decoded;}catch(e){}
+        await doCheckin(regId);
+      }, ()=>{});
+    scannerActive=true;
+  } catch(e){ console.error(e); }
+}
+
+function stopScanner() {
+  if(html5Qr&&scannerActive) {
+    html5Qr.stop().catch(()=>{});
+    html5Qr=null; scannerActive=false;
+  }
+}
+
+async function loadScanStats() {
+  const evId = document.getElementById('scanEvSelect')?.value;
+  if(!evId) return;
+  const {data:ev} = await sb.from('events').select('*').eq('id',evId).single();
+  currentEvent = ev;
+  const {data:regs} = await sb.from('registrations').select('checked_in').eq('event_id',evId);
+  const total=regs?.length||0, checkin=regs?.filter(r=>r.checked_in).length||0;
+  document.getElementById('sc-total').textContent=total;
+  document.getElementById('sc-in').textContent=checkin;
+  document.getElementById('sc-out').textContent=total-checkin;
+}
+
+async function manualCheckin(){
+  const id=document.getElementById('manualId')?.value.trim();
+  if(!id) return;
+  await doCheckin(id);
+  if(document.getElementById('manualId')) document.getElementById('manualId').value='';
+}
+
+async function doCheckin(regId) {
+  scanBusy=true;
+  const evId=document.getElementById('scanEvSelect')?.value;
+  if(!evId){showScanResult({success:false,message:'กรุณาเลือก Event ก่อน'});scanBusy=false;return;}
+
+  // find registration
+  const {data:reg} = await sb.from('registrations')
+    .select('*').eq('reg_id',regId).eq('event_id',evId).single();
+
+  if(!reg){
+    showScanResult({success:false,message:'❌ ไม่พบรหัสการลงทะเบียน'});
+    scanBusy=false; return;
+  }
+  if(reg.checked_in){
+    showScanResult({success:false,already:true,name:reg.name,
+      message:'⚠️ รหัสนี้เช็กอินไปแล้ว',time:reg.checkin_time});
+    scanBusy=false; return;
+  }
+
+  // check in
+  const now=new Date().toISOString();
+  await sb.from('registrations').update({
+    checked_in:true, checkin_time:now, checkin_by:currentUser?.email||'scanner'
+  }).eq('id',reg.id);
+
+  showScanResult({success:true,name:reg.name,message:'✅ เช็กอินสำเร็จ!',time:now});
+  loadScanStats();
+  scanBusy=false;
+}
+
+function showScanResult(d) {
+  const box=document.getElementById('scanResult');
+  if(!box) return;
+  box.className='result-card';
+  box.style.display='block';
+  if(d.success){
+    box.classList.add('success');
+    document.getElementById('rIcon').textContent='✅';
+    document.getElementById('rName').textContent=d.name||'';
+    document.getElementById('rMsg').textContent=d.message;
+    document.getElementById('rTime').textContent='เวลา: '+new Date(d.time).toLocaleString('th-TH');
+  } else if(d.already){
+    box.classList.add('warning');
+    document.getElementById('rIcon').textContent='⚠️';
+    document.getElementById('rName').textContent=d.name||'';
+    document.getElementById('rMsg').textContent=d.message;
+    document.getElementById('rTime').textContent='เช็กอินเมื่อ: '+new Date(d.time).toLocaleString('th-TH');
+  } else {
+    box.classList.add('error');
+    document.getElementById('rIcon').textContent='❌';
+    document.getElementById('rName').textContent='ไม่พบข้อมูล';
+    document.getElementById('rMsg').textContent=d.message;
+    document.getElementById('rTime').textContent='';
+  }
+  setTimeout(()=>{if(box)box.style.display='none';},4000);
+}
+
+// ── REPORT ──
+async function renderReport() {
+  if(!currentEvent){setContent('<div class="empty"><div class="empty-icon">📋</div><p>กรุณาเลือก Event ก่อน</p></div>');return;}
+  document.getElementById('topActions').innerHTML=`
+    <button class="btn btn-outline btn-sm" onclick="window.print()">🖨️ Print</button>
+    <button class="btn btn-green btn-sm" style="margin-left:6px" onclick="exportCSV()">⬇️ Export</button>`;
+  setContent('<div class="loading"><div class="spinner"></div></div>');
+
+  const {data:regs} = await sb.from('registrations').select('*').eq('event_id',currentEvent.id).order('created_at');
+  const total=regs?.length||0, checkin=regs?.filter(r=>r.checked_in).length||0;
+  const pct=total>0?Math.round(checkin/total*100):0;
+
+  const fields=(currentEvent.fields_json||[]).filter(f=>['select','radio'].includes(f.type));
+  const bdHtml=fields.map(f=>{
+    const counts={};
+    (regs||[]).forEach(r=>{const v=r.field_data?.[f.id]||'(ไม่ระบุ)';counts[v]=(counts[v]||0)+1;});
+    const entries=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+    const max=entries[0]?entries[0][1]:1;
+    return `<div class="card">
+      <div class="card-title">${esc(f.label)}</div>
+      ${entries.map(([v,c])=>`<div class="bd-row">
+        <div style="flex:1;font-size:13px">${esc(v)}</div>
+        <div class="bd-bar-wrap"><div class="bd-bar" style="width:${Math.round(c/max*100)}%"></div></div>
+        <div class="mono">${c}</div>
+        <div style="font-size:11px;color:var(--muted);min-width:32px;text-align:right">${Math.round(c/Math.max(total,1)*100)}%</div>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+
+  const extraF=(currentEvent.fields_json||[]).filter(f=>!['name','email'].includes(f.id));
+  allAttendees=regs||[];
+  setContent(`
+    <div class="report-hero">
+      <div style="font-size:40px;margin-bottom:12px">📋</div>
+      <h2 style="font-size:24px;font-weight:800;color:#f1f5f9;margin-bottom:6px">${esc(currentEvent.event_name)}</h2>
+      <p style="color:var(--muted);font-size:13px">${currentEvent.event_date||'—'} | ${currentEvent.event_location||'—'}</p>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi k1"><div class="kpi-n">${total}</div><div class="kpi-l">ลงทะเบียนทั้งหมด</div></div>
+      <div class="kpi k2"><div class="kpi-n">${checkin}</div><div class="kpi-l">เข้าร่วมจริง</div></div>
+      <div class="kpi k3"><div class="kpi-n">${pct}%</div><div class="kpi-l">อัตราการเข้าร่วม</div></div>
+    </div>
+    ${bdHtml}
+    <div class="tbl-wrap">
+      <div class="tbl-head"><h3>รายชื่อทั้งหมด</h3></div>
+      <table><thead><tr><th>#</th><th>ชื่อ</th><th>อีเมล</th>
+        ${extraF.map(f=>`<th>${esc(f.label)}</th>`).join('')}
+        <th>สถานะ</th><th>เวลาเช็กอิน</th></tr></thead>
+      <tbody>${(regs||[]).map((r,i)=>`<tr>
+        <td class="mono">${i+1}</td><td><strong>${esc(r.name)}</strong></td>
+        <td class="mono" style="font-size:11px">${esc(r.email)}</td>
+        ${extraF.map(f=>`<td>${esc(r.field_data?.[f.id]||'—')}</td>`).join('')}
+        <td>${r.checked_in?'<span class="badge b-green">✅ เช็กอิน</span>':'<span class="badge b-amber">⏳ ไม่มา</span>'}</td>
+        <td class="mono" style="font-size:11px">${r.checkin_time?new Date(r.checkin_time).toLocaleString('th-TH'):'—'}</td>
+      </tr>`).join('')}</tbody></table>
+    </div>`);
+}
+
+// ── STAFF ──
+function openStaffModal(){document.getElementById('staffOverlay').classList.add('show');}
+async function saveStaff() {
+  const email=document.getElementById('staff-email').value.trim();
+  const name=document.getElementById('staff-name').value.trim();
+  const pass=document.getElementById('staff-pass').value;
+  const role=document.getElementById('staff-role').value;
+  if(!email||!pass){toast('กรอกอีเมลและรหัสผ่าน','err');return;}
+
+  const {data,error} = await sb.auth.admin.createUser({email,password:pass,email_confirm:true});
+  if(error){
+    // fallback: just add to staff table
+    await sb.from('staff').upsert({email,name,role});
+    toast('✅ เพิ่มเจ้าหน้าที่แล้ว (ให้ตั้งรหัสผ่านผ่าน Supabase Auth)','ok');
+  } else {
+    await sb.from('staff').upsert({email,name,role});
+    toast('✅ เพิ่มเจ้าหน้าที่สำเร็จ','ok');
+  }
+  closeModal('staffOverlay');
+}
+
+// ── UTILITIES ──
+function setContent(html){const el=document.getElementById('pageContent');if(el)el.innerHTML=html;}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+let _toast;
+function toast(msg,type=''){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.className='toast show '+(type==='ok'?'ok':type==='err'?'err':'');
+  clearTimeout(_toast);_toast=setTimeout(()=>el.className='toast',3500);
+}
+function dlCSV(rows,name){
+  const csv='\uFEFF'+rows.map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download=name+'_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+}
+
+// ── INIT ──
+(async function(){
+  const {data:{session}} = await sb.auth.getSession();
+  if(session) {
+    await loadUserRole(session.user);
+    showApp();
+  }
+})();
+</script>
+</body>
+</html>
