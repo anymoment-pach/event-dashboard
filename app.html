@@ -455,7 +455,7 @@ async function renderEvents() {
     const pct=total>0?Math.round(checkin/total*100):0;
     const stClass=ev.status==='active'?'st-active':ev.status==='closed'?'st-closed':'st-draft';
     const stLabel=ev.status==='active'?'Active':ev.status==='closed'?'Closed':'Draft';
-    const formLink=`${APP_URL}?page=register&event_id=${ev.id}`;
+    const formLink=`${APP_URL.replace('app.html','register.html')}?event_id=${ev.id}`;
     return `<div class="ev-card ${stClass}">
       <div class="status-tag">${stLabel}</div>
       <div class="ev-name">${esc(ev.event_name)}</div>
