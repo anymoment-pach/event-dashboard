@@ -344,11 +344,16 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <div class="form-group"><label class="form-label">รหัสผ่าน</label>
       <input class="form-input" id="staff-pass" type="password" placeholder="รหัสผ่าน"/></div>
     <div class="form-group"><label class="form-label">Role</label>
-      <select class="form-select" id="staff-role">
-        <option value="staff">Staff (ดูและสแกนได้)</option>
-        <option value="admin">Admin (จัดการได้ทั้งหมด)</option>
-      </select></div>
-    <button class="btn btn-acc" style="width:100%" onclick="saveStaff()">💾 เพิ่มเจ้าหน้าที่</button>
+  <select class="form-select" id="staff-role" onchange="toggleEventSelect()">
+    <option value="staff">Staff (ดูและสแกนได้)</option>
+    <option value="admin">Admin (จัดการได้ทั้งหมด)</option>
+  </select></div>
+<div class="form-group" id="staff-events-wrap">
+  <label class="form-label">จำกัด Event (เลือกได้หลายอัน)</label>
+  <select class="form-select" id="staff-events" multiple style="min-height:100px"></select>
+  <p style="font-size:11px;color:var(--muted);margin-top:4px">ถ้าไม่เลือก = เข้าได้ทุก Event</p>
+</div>
+<button class="btn btn-acc" style="width:100%" onclick="saveStaff()">💾 เพิ่มเจ้าหน้าที่</button>
   </div>
 </div>
 
@@ -436,8 +441,14 @@ async function renderEvents() {
     `<button class="btn btn-acc btn-sm" onclick="navTo(document.querySelector('[data-page=builder]'))">✨ สร้าง Event ใหม่</button>
      <button class="btn btn-outline btn-sm" style="margin-left:6px" onclick="openStaffModal()">👤 เพิ่มเจ้าหน้าที่</button>`;
 
-  const {data:events} = await sb.from('events').select('*').order('created_at',{ascending:false});
-  if(!events?.length){
+  let evQuery = sb.from('events').select('*').order('created_at',{ascending:false});
+// ถ้าเป็น staff และมี allowed_events → กรองเฉพาะ event ที่อนุญาต
+const {data:staffData} = await sb.from('staff').select('allowed_events').eq('email',currentUser.email).single();
+const allowed = staffData?.allowed_events;
+const {data:events} = await evQuery;
+const filteredEvents = (userRole==='admin'||!allowed) ? events :
+  (events||[]).filter(e => allowed.split(',').includes(e.id));
+  if(!filteredEvents?.length){
     setContent('<div class="empty"><div class="empty-icon">🗂️</div><p>ยังไม่มี Event<br>กด "สร้าง Event ใหม่" เพื่อเริ่มต้น</p></div>');
     return;
   }
@@ -450,7 +461,7 @@ async function renderEvents() {
     if(r.checked_in) checkinMap[r.event_id]=(checkinMap[r.event_id]||0)+1;
   });
 
-  const cards = events.map(ev=>{
+  const cards = filteredEvents.map(ev=>{
     const total=countMap[ev.id]||0, checkin=checkinMap[ev.id]||0;
     const pct=total>0?Math.round(checkin/total*100):0;
     const stClass=ev.status==='active'?'st-active':ev.status==='closed'?'st-closed':'st-draft';
@@ -495,9 +506,12 @@ async function toggleStatus(id,status) {
 }
 
 async function deleteEvent(id) {
-  if(!confirm('ลบ Event นี้?')) return;
-  await sb.from('events').delete().eq('id',id);
-  toast('🗑 ลบแล้ว','ok'); renderEvents();
+  if(!confirm('ลบ Event นี้?\n(ข้อมูลผู้ลงทะเบียนจะถูกลบด้วย)')) return;
+  await sb.from('registrations').delete().eq('event_id',id);
+  const {error} = await sb.from('events').delete().eq('id',id);
+  if(error){ toast('❌ ลบไม่ได้: '+error.message,'err'); return; }
+  toast('🗑 ลบแล้ว','ok'); 
+  renderEvents();
 }
 
 function copyLink(url) {
@@ -1009,24 +1023,33 @@ async function renderReport() {
 }
 
 // ── STAFF ──
-function openStaffModal(){document.getElementById('staffOverlay').classList.add('show');}
+function openStaffModal(){
+  document.getElementById('staffOverlay').classList.add('show');
+  // โหลด events สำหรับ dropdown
+  sb.from('events').select('id,event_name').then(({data})=>{
+    const sel = document.getElementById('staff-events');
+    if(sel && data) {
+      sel.innerHTML = data.map(e=>`<option value="${e.id}">${esc(e.event_name)}</option>`).join('');
+    }
+  });
+}
 async function saveStaff() {
   const email=document.getElementById('staff-email').value.trim();
   const name=document.getElementById('staff-name').value.trim();
   const pass=document.getElementById('staff-pass').value;
   const role=document.getElementById('staff-role').value;
+  const eventsSel=document.getElementById('staff-events');
+  const allowedEvents=role==='admin'?null:
+    Array.from(eventsSel.selectedOptions).map(o=>o.value).join(',') || null;
   if(!email||!pass){toast('กรอกอีเมลและรหัสผ่าน','err');return;}
-
-  const {data,error} = await sb.auth.admin.createUser({email,password:pass,email_confirm:true});
-  if(error){
-    // fallback: just add to staff table
-    await sb.from('staff').upsert({email,name,role});
-    toast('✅ เพิ่มเจ้าหน้าที่แล้ว (ให้ตั้งรหัสผ่านผ่าน Supabase Auth)','ok');
-  } else {
-    await sb.from('staff').upsert({email,name,role});
-    toast('✅ เพิ่มเจ้าหน้าที่สำเร็จ','ok');
-  }
+  await sb.from('staff').upsert({email,name,role,allowed_events:allowedEvents});
+  toast('✅ เพิ่มเจ้าหน้าที่แล้ว','ok');
   closeModal('staffOverlay');
+}
+
+function toggleEventSelect(){
+  const role=document.getElementById('staff-role').value;
+  document.getElementById('staff-events-wrap').style.display=role==='admin'?'none':'block';
 }
 
 // ── UTILITIES ──
