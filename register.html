@@ -213,6 +213,26 @@ async function submitForm(){
   const {data:dup}=await sb.from('registrations').select('reg_id').eq('event_id',EVENT_ID).eq('email',email).maybeSingle();
   if(dup){alert('⚠️ อีเมลนี้ลงทะเบียนแล้ว\nรหัส: '+dup.reg_id);btn.disabled=false;document.getElementById('submitText').textContent='✨ ลงทะเบียนเลย';return;}
   const {error}=await sb.from('registrations').insert({event_id:EVENT_ID,field_data:fields,email,name,reg_id:regId,qr_url:qrUrl});
+   // ส่งอีเมล
+  try {
+    await fetch('https://biprjfyerbezwpqgsljp.supabase.co/functions/v1/send-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpcHJqZnllcmJlendwcWdzbGpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NTE4ODEsImV4cCI6MjA5MTEyNzg4MX0.ilQrizJIFhZdMTDqHZ5S-HagSRWe4k8r0ICHo7vjsGQ'
+      },
+      body: JSON.stringify({
+        to: email,
+        name: name,
+        reg_id: regId,
+        event_name: eventData.event_name,
+        event_date: eventData.event_date,
+        event_time: eventData.event_time,
+        event_location: eventData.event_location,
+        qr_url: qrUrl
+      })
+    });
+  } catch(e){ console.error('Email error:',e); } 
   if(error){alert('❌ เกิดข้อผิดพลาด: '+error.message);btn.disabled=false;document.getElementById('submitText').textContent='✨ ลงทะเบียนเลย';return;}
   document.getElementById('formCard').style.display='none';
   document.getElementById('successCard').style.display='block';
