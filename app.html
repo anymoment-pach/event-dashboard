@@ -1068,15 +1068,25 @@ function dlCSV(rows,name){
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
   a.download=name+'_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
 }
-
 // ── INIT ──
 (async function(){
+  // ซ่อน app ไว้ก่อนเสมอ
+  document.getElementById('v-app').style.display = 'none';
+  document.getElementById('v-login').classList.add('active');
+
   const {data:{session}} = await sb.auth.getSession();
   if(session) {
     await loadUserRole(session.user);
     showApp();
   }
+  // ถ้าไม่มี session → แสดง login อัตโนมัติอยู่แล้ว
+
+  // ถ้า logout จากที่อื่น → reload ทันที
+  sb.auth.onAuthStateChange((event) => {
+    if(event === 'SIGNED_OUT') location.reload();
+  });
 })();
+
 </script>
 </body>
 </html>
