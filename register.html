@@ -214,11 +214,11 @@ async function submitForm(){
   const {data:dup}=await sb.from('registrations').select('reg_id').eq('event_id',EVENT_ID).eq('email',email).maybeSingle();
   if(dup){alert('⚠️ อีเมลนี้ลงทะเบียนแล้ว\nรหัส: '+dup.reg_id);btn.disabled=false;document.getElementById('submitText').textContent='✨ ลงทะเบียนเลย';return;}
   const {error}=await sb.from('registrations').insert({event_id:EVENT_ID,field_data:fields,email,name,reg_id:regId,qr_url:qrUrl});
-     // ส่งอีเมล ด้วย EmailJS
+       // ส่งอีเมล ด้วย EmailJS
   try {
     await emailjs.send(
-      'YOUR_SERVICE_ID',    // ← ใส่ Service ID
-      'YOUR_TEMPLATE_ID',   // ← ใส่ Template ID
+      'eventregservice',    // ← ใส่ Service ID
+      'template_isglki8',   // ← ใส่ Template ID
       {
         to_email: email,
         to_name: name,
@@ -228,7 +228,7 @@ async function submitForm(){
         event_location: eventData.event_location || '—',
         qr_url: qrUrl,
       },
-      'YOUR_PUBLIC_KEY'     // ← ใส่ Public Key
+      'cW2XDyZUgmsgA2iVX'     // ← ใส่ Public Key
     );
     console.log('✅ ส่งอีเมลสำเร็จ');
   } catch(e) {
