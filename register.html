@@ -6,6 +6,7 @@
 <title>ลงทะเบียน</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Sarabun',sans-serif;background:#fafafa;color:#1a1a1a;min-height:100vh}
@@ -213,26 +214,26 @@ async function submitForm(){
   const {data:dup}=await sb.from('registrations').select('reg_id').eq('event_id',EVENT_ID).eq('email',email).maybeSingle();
   if(dup){alert('⚠️ อีเมลนี้ลงทะเบียนแล้ว\nรหัส: '+dup.reg_id);btn.disabled=false;document.getElementById('submitText').textContent='✨ ลงทะเบียนเลย';return;}
   const {error}=await sb.from('registrations').insert({event_id:EVENT_ID,field_data:fields,email,name,reg_id:regId,qr_url:qrUrl});
-   // ส่งอีเมล
+     // ส่งอีเมล ด้วย EmailJS
   try {
-    await fetch('https://biprjfyerbezwpqgsljp.supabase.co/functions/v1/send-email', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpcHJqZnllcmJlendwcWdzbGpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NTE4ODEsImV4cCI6MjA5MTEyNzg4MX0.ilQrizJIFhZdMTDqHZ5S-HagSRWe4k8r0ICHo7vjsGQ'
-      },
-      body: JSON.stringify({
-        to: email,
-        name: name,
+    await emailjs.send(
+      'YOUR_SERVICE_ID',    // ← ใส่ Service ID
+      'YOUR_TEMPLATE_ID',   // ← ใส่ Template ID
+      {
+        to_email: email,
+        to_name: name,
         reg_id: regId,
         event_name: eventData.event_name,
-        event_date: eventData.event_date,
-        event_time: eventData.event_time,
-        event_location: eventData.event_location,
-        qr_url: qrUrl
-      })
-    });
-  } catch(e){ console.error('Email error:',e); } 
+        event_date: eventData.event_date || '—',
+        event_location: eventData.event_location || '—',
+        qr_url: qrUrl,
+      },
+      'YOUR_PUBLIC_KEY'     // ← ใส่ Public Key
+    );
+    console.log('✅ ส่งอีเมลสำเร็จ');
+  } catch(e) {
+    console.error('Email error:', e);
+  }
   if(error){alert('❌ เกิดข้อผิดพลาด: '+error.message);btn.disabled=false;document.getElementById('submitText').textContent='✨ ลงทะเบียนเลย';return;}
   document.getElementById('formCard').style.display='none';
   document.getElementById('successCard').style.display='block';
