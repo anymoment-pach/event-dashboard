@@ -399,16 +399,37 @@ async function loadUserRole(user) {
 }
 
 function showApp() {
-  document.getElementById('v-login').classList.remove('active');
-  document.getElementById('v-app').style.display='flex';
-  document.getElementById('v-app').classList.add('active');
-  if(userRole==='admin') navTo(document.querySelector('[data-page="events"]'));
-  else navTo(document.querySelector('[data-page="scanner"]'));
-}
+  // ซ่อน login ให้หมดเลย
+  const loginView = document.getElementById('v-login');
+  loginView.classList.remove('active');
+  loginView.style.display = 'none';
 
+  // แสดง app
+  const appView = document.getElementById('v-app');
+  appView.style.display = 'flex';
+  appView.classList.add('active');
+
+  if(userRole === 'admin') {
+    navTo(document.querySelector('[data-page="events"]'));
+  } else {
+    navTo(document.querySelector('[data-page="scanner"]'));
+  }
+}
 async function doLogout() {
   await sb.auth.signOut();
-  location.reload();
+  // แสดง login กลับมา
+  const appView = document.getElementById('v-app');
+  appView.style.display = 'none';
+  appView.classList.remove('active');
+
+  const loginView = document.getElementById('v-login');
+  loginView.style.display = 'flex';
+  loginView.classList.add('active');
+
+  // เคลียร์ช่องกรอก
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginErr').style.display = 'none';
 }
 
 // ── NAVIGATION ──
