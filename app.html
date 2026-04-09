@@ -357,7 +357,19 @@ tr:hover td{background:rgba(255,255,255,.015)}
 <button class="btn btn-acc" style="width:100%" onclick="saveStaff()">💾 เพิ่มเจ้าหน้าที่</button>
   </div>
 </div>
-
+<!-- Confirm Checkin Modal -->
+<div class="overlay" id="confirmOverlay">
+  <div class="modal" style="max-width:360px;text-align:center">
+    <div style="font-size:48px;margin-bottom:12px">🎫</div>
+    <h3 style="font-size:18px;font-weight:800;color:#f1f5f9;margin-bottom:6px" id="confirmName">—</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:6px" id="confirmEmail">—</p>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px">ยืนยันการเช็กอินใช่ไหม?</p>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-green" style="flex:1;justify-content:center;font-size:15px" onclick="confirmCheckin()">✅ ใช่ เช็กอิน</button>
+      <button class="btn btn-outline" style="flex:1;justify-content:center" onclick="cancelCheckin()">❌ ยกเลิก</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -847,6 +859,8 @@ function copyNames(){
 }
 
 // ── SCANNER ──
+let pendingReg = null; // เก็บข้อมูลรอยืนยัน
+
 async function renderScanner() {
   document.getElementById('topActions').innerHTML='';
   setContent(`
@@ -873,7 +887,6 @@ async function renderScanner() {
       </div>
     </div>`);
 
-  // load events
   const {data:events} = await sb.from('events').select('id,event_name,status').neq('status','closed');
   const sel = document.getElementById('scanEvSelect');
   (events||[]).forEach(ev=>{
@@ -883,8 +896,6 @@ async function renderScanner() {
     sel.appendChild(o);
   });
   if(currentEvent) loadScanStats();
-
-  // start scanner
   setTimeout(()=>startScanner(), 300);
 }
 
@@ -892,9 +903,14 @@ function startScanner() {
   if(html5Qr) return;
   try {
     html5Qr = new Html5Qrcode("reader");
-    html5Qr.start({facingMode:"environment"},{fps:10,qrbox:{width:230,height:230}},
+    html5Qr.start(
+      {facingMode:"environment"},
+      {fps:10, qrbox:{width:230,height:230}},
       async decoded => {
+        // ป้องกันสแกนซ้ำ — ต้องไม่ busy และไม่มี modal ค้างอยู่
         if(scanBusy) return;
+        if(document.getElementById('confirmOverlay').classList.contains('show')) return;
+
         let regId = decoded;
         try{const u=new URL(decoded);regId=u.searchParams.get('reg_id')||decoded;}catch(e){}
         await doCheckin(regId);
@@ -930,52 +946,83 @@ async function manualCheckin(){
 }
 
 async function doCheckin(regId) {
-  scanBusy=true;
-  const evId=document.getElementById('scanEvSelect')?.value;
-  if(!evId){showScanResult({success:false,message:'กรุณาเลือก Event ก่อน'});scanBusy=false;return;}
+  scanBusy = true;
+  const evId = document.getElementById('scanEvSelect')?.value;
+  if(!evId){
+    showScanResult({success:false, message:'กรุณาเลือก Event ก่อน'});
+    scanBusy=false; return;
+  }
 
-  // find registration
   const {data:reg} = await sb.from('registrations')
     .select('*').eq('reg_id',regId).eq('event_id',evId).single();
 
   if(!reg){
-    showScanResult({success:false,message:'❌ ไม่พบรหัสการลงทะเบียน'});
+    // ไม่พบ — แสดงผลทันทีเลย ไม่ต้องถาม
+    showScanResult({success:false, message:'❌ ไม่พบรหัสการลงทะเบียน'});
     scanBusy=false; return;
   }
+
   if(reg.checked_in){
-    showScanResult({success:false,already:true,name:reg.name,
-      message:'⚠️ รหัสนี้เช็กอินไปแล้ว',time:reg.checkin_time});
+    // เช็กอินซ้ำ — แสดง modal แจ้งเตือน ไม่ต้องถาม
+    showAlreadyModal(reg);
     scanBusy=false; return;
   }
 
-  // check in
-  const now=new Date().toISOString();
-  await sb.from('registrations').update({
-    checked_in:true, checkin_time:now, checkin_by:currentUser?.email||'scanner'
-  }).eq('id',reg.id);
+  // ยังไม่เช็กอิน — แสดง modal ยืนยัน
+  pendingReg = reg;
+  document.getElementById('confirmName').textContent = reg.name || '—';
+  document.getElementById('confirmEmail').textContent = reg.email || '—';
+  document.getElementById('confirmOverlay').classList.add('show');
+  // scanBusy ยังเป็น true เพื่อล็อกไม่ให้สแกนซ้ำขณะ modal เปิด
+}
 
-  showScanResult({success:true,name:reg.name,message:'✅ เช็กอินสำเร็จ!',time:now});
+async function confirmCheckin() {
+  if(!pendingReg) return;
+  document.getElementById('confirmOverlay').classList.remove('show');
+
+  const now = new Date().toISOString();
+  await sb.from('registrations').update({
+    checked_in: true,
+    checkin_time: now,
+    checkin_by: currentUser?.email || 'scanner'
+  }).eq('id', pendingReg.id);
+
+  showScanResult({success:true, name:pendingReg.name, message:'✅ เช็กอินสำเร็จ!', time:now});
   loadScanStats();
-  scanBusy=false;
+  pendingReg = null;
+  scanBusy = false;
+}
+
+function cancelCheckin() {
+  document.getElementById('confirmOverlay').classList.remove('show');
+  pendingReg = null;
+  scanBusy = false;
+}
+
+function showAlreadyModal(reg) {
+  // แสดง result card แจ้งเช็กอินซ้ำ ไม่ต้องกดยืนยัน
+  const box = document.getElementById('scanResult');
+  if(!box) return;
+  box.className = 'result-card warning';
+  box.style.display = 'block';
+  document.getElementById('rIcon').textContent = '⚠️';
+  document.getElementById('rName').textContent = reg.name || '';
+  document.getElementById('rMsg').textContent = 'คนนี้เช็กอินไปแล้ว!';
+  document.getElementById('rTime').textContent = 'เช็กอินเมื่อ: '+new Date(reg.checkin_time).toLocaleString('th-TH');
+  setTimeout(()=>{if(box) box.style.display='none';}, 4000);
 }
 
 function showScanResult(d) {
-  const box=document.getElementById('scanResult');
+  const box = document.getElementById('scanResult');
   if(!box) return;
-  box.className='result-card';
-  box.style.display='block';
+  box.className = 'result-card';
+  box.style.display = 'block';
   if(d.success){
     box.classList.add('success');
     document.getElementById('rIcon').textContent='✅';
     document.getElementById('rName').textContent=d.name||'';
     document.getElementById('rMsg').textContent=d.message;
     document.getElementById('rTime').textContent='เวลา: '+new Date(d.time).toLocaleString('th-TH');
-  } else if(d.already){
-    box.classList.add('warning');
-    document.getElementById('rIcon').textContent='⚠️';
-    document.getElementById('rName').textContent=d.name||'';
-    document.getElementById('rMsg').textContent=d.message;
-    document.getElementById('rTime').textContent='เช็กอินเมื่อ: '+new Date(d.time).toLocaleString('th-TH');
   } else {
     box.classList.add('error');
     document.getElementById('rIcon').textContent='❌';
@@ -983,7 +1030,7 @@ function showScanResult(d) {
     document.getElementById('rMsg').textContent=d.message;
     document.getElementById('rTime').textContent='';
   }
-  setTimeout(()=>{if(box)box.style.display='none';},4000);
+  setTimeout(()=>{if(box) box.style.display='none';}, 4000);
 }
 
 // ── REPORT ──
